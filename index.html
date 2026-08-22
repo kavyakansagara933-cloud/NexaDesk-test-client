@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Macky Test Client</title>
+  <style>
+    body {
+      font-family: -apple-system, "Segoe UI", sans-serif;
+      background: #14151a;
+      color: #e8e8ea;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      margin: 0;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #9a9ab0;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    input {
+      font-size: 20px;
+      letter-spacing: 4px;
+      text-align: center;
+      padding: 10px;
+      width: 180px;
+      background: #1e1f28;
+      border: 1px solid #2a2a35;
+      border-radius: 6px;
+      color: #e8e8ea;
+      text-transform: uppercase;
+    }
+    button {
+      margin-top: 12px;
+      padding: 10px 20px;
+      background: #7c9eff;
+      border: none;
+      border-radius: 6px;
+      color: #14151a;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #status {
+      font-size: 13px;
+      color: #8a8a9a;
+      margin-top: 20px;
+    }
+    #remoteVideo {
+      margin-top: 20px;
+      width: 640px;
+      max-width: 90vw;
+      border-radius: 6px;
+      border: 1px solid #2a2a35;
+      display: none;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+  <h1>Macky Test Client</h1>
+  <input id="codeInput" placeholder="PAIR CODE" maxlength="6" />
+  <button id="joinBtn">Join</button>
+  <div id="status">Enter the pairing code shown in Macky Host.</div>
+  <video id="remoteVideo" autoplay playsinline></video>
+
+  <script src="client.js"></script>
+</body>
+</html>

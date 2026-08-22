@@ -11,7 +11,7 @@
  *   4. Exchange ICE candidates
  *   5. Render the incoming screen stream
  *   6. Receive the "control" DataChannel
- *   7. Send mouse coordinates when the user moves over the streamed screen
+ *   7. Send accurately scaled mouse coordinates to the host
  */
 
 const SIGNALING_SERVER_URL =
@@ -255,9 +255,8 @@ async function handleOffer(offer) {
 /* ---------------- MOUSE CONTROL ---------------- */
 
 /**
- * When the user moves their mouse over the streamed video,
- * calculate the position relative to the video and send it
- * to Macky Host through the WebRTC DataChannel.
+ * Converts the mouse position over the displayed video into
+ * coordinates matching the actual resolution of the host's screen.
  */
 videoEl.addEventListener("mousemove", (event) => {
   if (
@@ -270,11 +269,38 @@ videoEl.addEventListener("mousemove", (event) => {
   const rect =
     videoEl.getBoundingClientRect();
 
-  const x =
-    Math.round(event.clientX - rect.left);
+  // Position inside the displayed video.
+  const relativeX =
+    event.clientX - rect.left;
 
-  const y =
-    Math.round(event.clientY - rect.top);
+  const relativeY =
+    event.clientY - rect.top;
+
+  // Actual resolution of the incoming host screen stream.
+  const hostWidth =
+    videoEl.videoWidth;
+
+  const hostHeight =
+    videoEl.videoHeight;
+
+  // Wait until the video metadata is available.
+  if (
+    hostWidth === 0 ||
+    hostHeight === 0 ||
+    rect.width === 0 ||
+    rect.height === 0
+  ) {
+    return;
+  }
+
+  // Scale the displayed coordinates to the host's real resolution.
+  const x = Math.round(
+    (relativeX / rect.width) * hostWidth
+  );
+
+  const y = Math.round(
+    (relativeY / rect.height) * hostHeight
+  );
 
   const command = {
     type: "mouse-move",

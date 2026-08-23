@@ -1,35 +1,22 @@
-# Macky Test Client
+# NexaDesk Test Client
 
-A throwaway (but genuinely functional) WebRTC peer used to test the
-Electron host end-to-end, before the real Android app exists. It plays
-the same role the Android app eventually will: join with a pairing code,
-receive the offer, answer it, exchange ICE candidates, and render the
-incoming video stream.
+A functional WebRTC test client used to test NexaDesk Host end-to-end before the real Android application exists.
 
-This is plain HTML/JS — no build step, no dependencies.
+It performs the same core role that the NexaDesk Android application will eventually perform:
 
-## How to use it
+- Join a session using a 6-character pairing code
+- Receive the WebRTC offer from NexaDesk Host
+- Create and send a WebRTC answer
+- Exchange ICE candidates
+- Receive and render the host's screen stream
+- Receive the remote-control DataChannel
+- Send scaled mouse coordinates to NexaDesk Host
 
-1. Make sure `macky-host` is running (`npm start` in that project) and
-   showing a pairing code
-2. Open `index.html` in this folder directly in a browser (double-click
-   it, or right-click → Open with → your browser)
-3. Type the 6-character pairing code shown in Macky Host
-4. Click **Join**
-5. Watch the status update: connecting → joined → offer received →
-   connected. Once connected, the host's screen should appear in the
-   video element on this page.
+This project uses plain HTML and JavaScript. There is no build step and no external dependency.
 
-## What this proves
+## How to Use It
 
-If the video appears, the full signaling + WebRTC pipeline works
-end-to-end: pairing, offer/answer exchange, ICE negotiation, and actual
-peer-to-peer media streaming — everything the real Android app will also
-need to do, just implemented in a browser instead of React Native.
+1. Make sure `NexaDesk Host` is running:
 
-## Note
-
-This is a testing tool, not part of the final product. Once the Android
-app exists and is verified working, this client isn't needed for
-day-to-day use — but it's good to keep in the repo as a reusable way to
-test the host in isolation going forward.
+```bash
+npm start

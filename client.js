@@ -1,7 +1,7 @@
 /**
- * Macky Test Client
- * ------------------
- * A real WebRTC peer used to test the Macky Host before the Android
+ * NexaDesk Test Client
+ * --------------------
+ * A real WebRTC peer used to test the NexaDesk Host before the Android
  * application exists.
  *
  * Flow:
@@ -42,7 +42,7 @@ joinBtn.addEventListener("click", () => {
 
   if (code.length !== 6) {
     statusEl.textContent =
-      "Enter the 6-character code shown in Macky Host.";
+      "Enter the 6-character code shown in NexaDesk Host.";
     return;
   }
 
@@ -108,7 +108,7 @@ joinBtn.addEventListener("click", () => {
 
     if (msg.type === "peer-disconnected") {
       statusEl.textContent =
-        "Host disconnected.";
+        "NexaDesk Host disconnected.";
     }
   });
 
@@ -127,7 +127,7 @@ joinBtn.addEventListener("click", () => {
 /* ---------------- WEBRTC CONNECTION ---------------- */
 
 /**
- * Receives the host's WebRTC offer and creates an answer.
+ * Receives the NexaDesk Host WebRTC offer and creates an answer.
  */
 async function handleOffer(offer) {
   peerConnection =
@@ -186,7 +186,7 @@ async function handleOffer(offer) {
         "block";
 
       statusEl.textContent =
-        "Connected - streaming host's screen.";
+        "Connected - streaming NexaDesk Host's screen.";
     }
   );
 
@@ -256,7 +256,7 @@ async function handleOffer(offer) {
 
 /**
  * Converts the mouse position over the displayed video into
- * coordinates matching the actual resolution of the host's screen.
+ * coordinates matching the actual resolution of the NexaDesk Host screen.
  */
 videoEl.addEventListener("mousemove", (event) => {
   if (
@@ -276,7 +276,7 @@ videoEl.addEventListener("mousemove", (event) => {
   const relativeY =
     event.clientY - rect.top;
 
-  // Actual resolution of the incoming host screen stream.
+  // Actual resolution of the incoming NexaDesk Host screen stream.
   const hostWidth =
     videoEl.videoWidth;
 

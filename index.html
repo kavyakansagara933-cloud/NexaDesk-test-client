@@ -2,7 +2,8 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Macky Test Client</title>
+  <title>NexaDesk Test Client</title>
+
   <style>
     body {
       font-family: -apple-system, "Segoe UI", sans-serif;
@@ -15,6 +16,7 @@
       margin: 0;
       min-height: 100vh;
     }
+
     h1 {
       font-size: 16px;
       font-weight: 600;
@@ -23,6 +25,7 @@
       text-transform: uppercase;
       margin-bottom: 24px;
     }
+
     input {
       font-size: 20px;
       letter-spacing: 4px;
@@ -35,6 +38,7 @@
       color: #e8e8ea;
       text-transform: uppercase;
     }
+
     button {
       margin-top: 12px;
       padding: 10px 20px;
@@ -45,15 +49,18 @@
       font-weight: 600;
       cursor: pointer;
     }
+
     button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+
     #status {
       font-size: 13px;
       color: #8a8a9a;
       margin-top: 20px;
     }
+
     #remoteVideo {
       margin-top: 20px;
       width: 640px;
@@ -65,12 +72,27 @@
     }
   </style>
 </head>
+
 <body>
-  <h1>Macky Test Client</h1>
-  <input id="codeInput" placeholder="PAIR CODE" maxlength="6" />
+  <h1>NexaDesk Test Client</h1>
+
+  <input
+    id="codeInput"
+    placeholder="PAIR CODE"
+    maxlength="6"
+  />
+
   <button id="joinBtn">Join</button>
-  <div id="status">Enter the pairing code shown in Macky Host.</div>
-  <video id="remoteVideo" autoplay playsinline></video>
+
+  <div id="status">
+    Enter the pairing code shown in NexaDesk Host.
+  </div>
+
+  <video
+    id="remoteVideo"
+    autoplay
+    playsinline
+  ></video>
 
   <script src="client.js"></script>
 </body>

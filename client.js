@@ -12,8 +12,8 @@
  *   5. Render the incoming screen stream
  *   6. Receive the "control" DataChannel
  *   7. Send accurately scaled mouse coordinates to the host
- *   8. Send mouse click commands to the host
- *   9. Send right-click, double-click, and scroll (up and down) commands
+ *   8. Send left button press/release (clicks, double-clicks and drags)
+ *   9. Send right-click and scroll (up and down) commands
  */
 
 const SIGNALING_SERVER_URL =
@@ -35,6 +35,9 @@ const RTC_CONFIG = {
 let socket = null;
 let peerConnection = null;
 let controlChannel = null;
+
+// True while the left mouse button is held down over the video.
+let leftButtonDown = false;
 
 
 /* ---------------- JOIN SIGNALING SERVER ---------------- */
@@ -254,20 +257,33 @@ async function handleOffer(offer) {
 }
 
 
-/* ---------------- MOUSE CONTROL ---------------- */
+/* ---------------- HELPERS ---------------- */
 
 /**
- * Converts the mouse position over the displayed video into
- * coordinates matching the actual resolution of the NexaDesk Host screen.
+ * Sends a command through the control DataChannel.
+ * Returns true if it was sent, false if the channel isn't open yet.
  */
-videoEl.addEventListener("mousemove", (event) => {
+function sendCommand(command) {
   if (
     !controlChannel ||
     controlChannel.readyState !== "open"
   ) {
-    return;
+    return false;
   }
 
+  controlChannel.send(
+    JSON.stringify(command)
+  );
+
+  return true;
+}
+
+/**
+ * Converts a mouse event over the displayed video into
+ * coordinates matching the actual resolution of the NexaDesk Host screen.
+ * Returns null if the video size isn't known yet.
+ */
+function getHostPosition(event) {
   const rect =
     videoEl.getBoundingClientRect();
 
@@ -292,56 +308,92 @@ videoEl.addEventListener("mousemove", (event) => {
     rect.width === 0 ||
     rect.height === 0
   ) {
-    return;
+    return null;
   }
 
   // Scale the displayed coordinates to the host's real resolution.
-  const x = Math.round(
-    (relativeX / rect.width) * hostWidth
-  );
-
-  const y = Math.round(
-    (relativeY / rect.height) * hostHeight
-  );
-
-  const command = {
-    type: "mouse-move",
-    x,
-    y,
+  return {
+    x: Math.round(
+      (relativeX / rect.width) * hostWidth
+    ),
+    y: Math.round(
+      (relativeY / rect.height) * hostHeight
+    ),
   };
-
-  controlChannel.send(
-    JSON.stringify(command)
-  );
-});
+}
 
 
-/* ---------------- MOUSE CLICK ---------------- */
+/* ---------------- MOUSE MOVEMENT ---------------- */
 
-/**
- * Sends a left mouse click command to the NexaDesk Host.
- *
- * The mouse position is already updated by the mousemove handler,
- * so the host performs the click at the current cursor position.
- */
-videoEl.addEventListener("click", () => {
-  if (
-    !controlChannel ||
-    controlChannel.readyState !== "open"
-  ) {
+videoEl.addEventListener("mousemove", (event) => {
+  const position = getHostPosition(event);
+
+  if (!position) {
     return;
   }
 
-  const command = {
-    type: "mouse-click",
-  };
+  sendCommand({
+    type: "mouse-move",
+    x: position.x,
+    y: position.y,
+  });
+});
+
+
+/* ---------------- LEFT BUTTON: CLICK, DOUBLE-CLICK, DRAG ---------------- */
+
+/**
+ * Instead of sending a single "click" command, we send the raw
+ * button press and release. The host presses and releases the real
+ * Windows mouse button, so:
+ *   - press + release at the same spot  -> a normal click
+ *   - two quick press/release pairs     -> a double-click (Windows handles it)
+ *   - press, move, release              -> a drag
+ */
+videoEl.addEventListener("mousedown", (event) => {
+  // Left button only. Right-click is handled by "contextmenu" below.
+  if (event.button !== 0) {
+    return;
+  }
+
+  // Stop the browser from starting its own drag/selection on the video.
+  event.preventDefault();
+
+  // Make sure the host cursor is exactly where we pressed.
+  const position = getHostPosition(event);
+
+  if (position) {
+    sendCommand({
+      type: "mouse-move",
+      x: position.x,
+      y: position.y,
+    });
+  }
+
+  if (sendCommand({ type: "mouse-down" })) {
+    leftButtonDown = true;
+
+    console.log(
+      "Sending mouse-down command."
+    );
+  }
+});
+
+/**
+ * Listen on the whole window (not just the video) so the button is
+ * still released on the host if the mouse is let go outside the video.
+ */
+window.addEventListener("mouseup", (event) => {
+  if (event.button !== 0 || !leftButtonDown) {
+    return;
+  }
+
+  leftButtonDown = false;
+
+  sendCommand({ type: "mouse-up" });
 
   console.log(
-    "Sending mouse click command."
-  );
-
-  controlChannel.send(
-    JSON.stringify(command)
+    "Sending mouse-up command."
   );
 });
 
@@ -357,50 +409,12 @@ videoEl.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 
   if (
-    !controlChannel ||
-    controlChannel.readyState !== "open"
+    sendCommand({ type: "mouse-right-click" })
   ) {
-    return;
+    console.log(
+      "Sending mouse right-click command."
+    );
   }
-
-  const command = {
-    type: "mouse-right-click",
-  };
-
-  console.log(
-    "Sending mouse right-click command."
-  );
-
-  controlChannel.send(
-    JSON.stringify(command)
-  );
-});
-
-
-/* ---------------- MOUSE DOUBLE-CLICK ---------------- */
-
-/**
- * Sends a double mouse click command to the NexaDesk Host.
- */
-videoEl.addEventListener("dblclick", () => {
-  if (
-    !controlChannel ||
-    controlChannel.readyState !== "open"
-  ) {
-    return;
-  }
-
-  const command = {
-    type: "mouse-double-click",
-  };
-
-  console.log(
-    "Sending mouse double-click command."
-  );
-
-  controlChannel.send(
-    JSON.stringify(command)
-  );
 });
 
 
@@ -416,13 +430,6 @@ videoEl.addEventListener("dblclick", () => {
 videoEl.addEventListener("wheel", (event) => {
   event.preventDefault();
 
-  if (
-    !controlChannel ||
-    controlChannel.readyState !== "open"
-  ) {
-    return;
-  }
-
   const direction =
     event.deltaY > 0 ? 1 : -1;
 
@@ -436,12 +443,10 @@ videoEl.addEventListener("wheel", (event) => {
     amount: direction * steps,
   };
 
-  console.log(
-    "Sending mouse scroll command:",
-    command
-  );
-
-  controlChannel.send(
-    JSON.stringify(command)
-  );
+  if (sendCommand(command)) {
+    console.log(
+      "Sending mouse scroll command:",
+      command
+    );
+  }
 });

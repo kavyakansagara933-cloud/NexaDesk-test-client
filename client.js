@@ -13,7 +13,7 @@
  *   6. Receive the "control" DataChannel
  *   7. Send accurately scaled mouse coordinates to the host
  *   8. Send mouse click commands to the host
- *   9. Send right-click, double-click, and scroll commands to the host
+ *   9. Send right-click, double-click, and scroll (up and down) commands
  */
 
 const SIGNALING_SERVER_URL =
@@ -409,10 +409,9 @@ videoEl.addEventListener("dblclick", () => {
 /**
  * Sends a scroll command to the NexaDesk Host.
  *
- * NOTE: the host currently only implements scrollDown via nut-js,
- * so both scroll-up and scroll-down gestures will scroll down for now.
- * A future step can add a "scroll-mouse-up" handler on the host to
- * support the other direction properly.
+ * The amount is signed, matching the browser's wheel direction:
+ *   positive -> scroll down
+ *   negative -> scroll up
  */
 videoEl.addEventListener("wheel", (event) => {
   event.preventDefault();
@@ -424,14 +423,17 @@ videoEl.addEventListener("wheel", (event) => {
     return;
   }
 
-  const amount = Math.max(
+  const direction =
+    event.deltaY > 0 ? 1 : -1;
+
+  const steps = Math.max(
     1,
     Math.round(Math.abs(event.deltaY) / 50)
   );
 
   const command = {
     type: "mouse-scroll",
-    amount,
+    amount: direction * steps,
   };
 
   console.log(

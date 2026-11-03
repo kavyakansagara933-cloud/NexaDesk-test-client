@@ -12,6 +12,8 @@
  *   5. Render the incoming screen stream
  *   6. Receive the "control" DataChannel
  *   7. Send accurately scaled mouse coordinates to the host
+ *   8. Send mouse click commands to the host
+ *   9. Send right-click, double-click, and scroll commands to the host
  */
 
 const SIGNALING_SERVER_URL =
@@ -276,7 +278,7 @@ videoEl.addEventListener("mousemove", (event) => {
   const relativeY =
     event.clientY - rect.top;
 
-  // Actual resolution of the incoming NexaDesk Host screen stream.
+  // Actual resolution of the incoming NexaDesk Host screen.
   const hostWidth =
     videoEl.videoWidth;
 
@@ -307,6 +309,135 @@ videoEl.addEventListener("mousemove", (event) => {
     x,
     y,
   };
+
+  controlChannel.send(
+    JSON.stringify(command)
+  );
+});
+
+
+/* ---------------- MOUSE CLICK ---------------- */
+
+/**
+ * Sends a left mouse click command to the NexaDesk Host.
+ *
+ * The mouse position is already updated by the mousemove handler,
+ * so the host performs the click at the current cursor position.
+ */
+videoEl.addEventListener("click", () => {
+  if (
+    !controlChannel ||
+    controlChannel.readyState !== "open"
+  ) {
+    return;
+  }
+
+  const command = {
+    type: "mouse-click",
+  };
+
+  console.log(
+    "Sending mouse click command."
+  );
+
+  controlChannel.send(
+    JSON.stringify(command)
+  );
+});
+
+
+/* ---------------- MOUSE RIGHT-CLICK ---------------- */
+
+/**
+ * Sends a right mouse click command to the NexaDesk Host.
+ * Prevents the browser's own right-click context menu from appearing
+ * over the video, since that's not useful here.
+ */
+videoEl.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+
+  if (
+    !controlChannel ||
+    controlChannel.readyState !== "open"
+  ) {
+    return;
+  }
+
+  const command = {
+    type: "mouse-right-click",
+  };
+
+  console.log(
+    "Sending mouse right-click command."
+  );
+
+  controlChannel.send(
+    JSON.stringify(command)
+  );
+});
+
+
+/* ---------------- MOUSE DOUBLE-CLICK ---------------- */
+
+/**
+ * Sends a double mouse click command to the NexaDesk Host.
+ */
+videoEl.addEventListener("dblclick", () => {
+  if (
+    !controlChannel ||
+    controlChannel.readyState !== "open"
+  ) {
+    return;
+  }
+
+  const command = {
+    type: "mouse-double-click",
+  };
+
+  console.log(
+    "Sending mouse double-click command."
+  );
+
+  controlChannel.send(
+    JSON.stringify(command)
+  );
+});
+
+
+/* ---------------- MOUSE SCROLL ---------------- */
+
+/**
+ * Sends a scroll command to the NexaDesk Host.
+ *
+ * NOTE: the host currently only implements scrollDown via nut-js,
+ * so both scroll-up and scroll-down gestures will scroll down for now.
+ * A future step can add a "scroll-mouse-up" handler on the host to
+ * support the other direction properly.
+ */
+videoEl.addEventListener("wheel", (event) => {
+  event.preventDefault();
+
+  if (
+    !controlChannel ||
+    controlChannel.readyState !== "open"
+  ) {
+    return;
+  }
+
+  const amount = Math.max(
+    1,
+    Math.round(Math.abs(event.deltaY) / 50)
+  );
+
+  const command = {
+    type: "mouse-scroll",
+    amount,
+  };
+
+  console.log(
+    "Sending mouse scroll command:",
+    command
+  );
 
   controlChannel.send(
     JSON.stringify(command)

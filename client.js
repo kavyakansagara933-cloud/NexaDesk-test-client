@@ -525,3 +525,71 @@ videoEl.addEventListener("wheel", (event) => {
     amount: direction * steps,
   });
 });
+
+
+/* ---------------- KEYBOARD ---------------- */
+
+/**
+ * Sends key presses to the NexaDesk Host.
+ *
+ * We send event.code (the physical key, e.g. "KeyA", "ShiftLeft"),
+ * and the host presses the matching key on Windows. Modifiers are
+ * sent as their own key-down / key-up events, so shortcuts such as
+ * Ctrl+C work naturally.
+ *
+ * Keys are only captured while the video has focus. Clicking the
+ * video gives it focus, so typing elsewhere on the page is unaffected.
+ */
+
+// Keys currently held down, so they can be released if focus is lost.
+const heldKeys = new Set();
+
+// Makes the video focusable so it can receive keyboard events.
+videoEl.tabIndex = 0;
+
+videoEl.addEventListener("mousedown", () => {
+  videoEl.focus();
+});
+
+videoEl.addEventListener("keydown", (event) => {
+  // Stop the browser from reacting (Tab, Backspace, F5, Ctrl+S...).
+  event.preventDefault();
+
+  // Repeated events from a held key are forwarded too, so typing
+  // "aaaa" by holding the key works on the host.
+  if (
+    sendCommand({
+      type: "key-down",
+      code: event.code,
+    })
+  ) {
+    heldKeys.add(event.code);
+  }
+});
+
+videoEl.addEventListener("keyup", (event) => {
+  event.preventDefault();
+
+  heldKeys.delete(event.code);
+
+  sendCommand({
+    type: "key-up",
+    code: event.code,
+  });
+});
+
+/**
+ * If the video loses focus (or the browser tab is hidden) while a
+ * key is held, the matching keyup would never arrive. Release
+ * everything on the host so no key stays stuck.
+ */
+function releaseAllHeldKeys() {
+  for (const code of heldKeys) {
+    sendCommand({ type: "key-up", code });
+  }
+
+  heldKeys.clear();
+}
+
+videoEl.addEventListener("blur", releaseAllHeldKeys);
+window.addEventListener("blur", releaseAllHeldKeys);

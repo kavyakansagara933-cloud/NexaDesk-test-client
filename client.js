@@ -74,7 +74,7 @@ joinBtn.addEventListener("click", () => {
   socket.addEventListener("message", async (event) => {
     const msg = JSON.parse(event.data);
 
-    console.log("[received]", msg);
+    console.log("[received]", msg.type);
 
     if (msg.type === "joined") {
       statusEl.textContent =
@@ -157,16 +157,6 @@ async function handleOffer(offer) {
         );
 
         controlChannel.addEventListener(
-          "message",
-          (event) => {
-            console.log(
-              "Control message received:",
-              event.data
-            );
-          }
-        );
-
-        controlChannel.addEventListener(
           "close",
           () => {
             console.log(
@@ -189,6 +179,32 @@ async function handleOffer(offer) {
 
       videoEl.style.display =
         "block";
+
+      // Ask the browser to show each video frame as soon as it
+      // arrives instead of holding frames back to smooth things out.
+      // This lowers the delay on the picture. Not every browser
+      // supports these settings, so each is attempted safely.
+      try {
+        if ("jitterBufferTarget" in event.receiver) {
+          event.receiver.jitterBufferTarget = 0;
+        }
+      } catch (err) {
+        console.warn(
+          "jitterBufferTarget not supported:",
+          err
+        );
+      }
+
+      try {
+        if ("playoutDelayHint" in event.receiver) {
+          event.receiver.playoutDelayHint = 0;
+        }
+      } catch (err) {
+        console.warn(
+          "playoutDelayHint not supported:",
+          err
+        );
+      }
 
       statusEl.textContent =
         "Connected - streaming NexaDesk Host's screen.";
@@ -325,6 +341,65 @@ function getHostPosition(event) {
 
 /* ---------------- MOUSE MOVEMENT ---------------- */
 
+/**
+ * Some mice report 500+ positions per second. The host cannot use that
+ * many, and sending them all only builds up a delay. Instead we keep
+ * the newest position and send at most ONE move per screen refresh
+ * (about 60 per second).
+ */
+let pendingMove = null;
+let moveFrameRequested = false;
+let lastSentX = null;
+let lastSentY = null;
+
+// If the connection is backed up, skip moves instead of queueing them.
+const MAX_BUFFERED_BYTES = 4096;
+
+function scheduleMove(position) {
+  pendingMove = position;
+
+  if (moveFrameRequested) {
+    return;
+  }
+
+  moveFrameRequested = true;
+
+  requestAnimationFrame(() => {
+    moveFrameRequested = false;
+
+    const move = pendingMove;
+    pendingMove = null;
+
+    if (!move) {
+      return;
+    }
+
+    // Nothing changed since the last move we sent.
+    if (move.x === lastSentX && move.y === lastSentY) {
+      return;
+    }
+
+    // The connection is still busy sending older data - skip this one.
+    if (
+      controlChannel &&
+      controlChannel.bufferedAmount > MAX_BUFFERED_BYTES
+    ) {
+      return;
+    }
+
+    if (
+      sendCommand({
+        type: "mouse-move",
+        x: move.x,
+        y: move.y,
+      })
+    ) {
+      lastSentX = move.x;
+      lastSentY = move.y;
+    }
+  });
+}
+
 videoEl.addEventListener("mousemove", (event) => {
   const position = getHostPosition(event);
 
@@ -332,11 +407,7 @@ videoEl.addEventListener("mousemove", (event) => {
     return;
   }
 
-  sendCommand({
-    type: "mouse-move",
-    x: position.x,
-    y: position.y,
-  });
+  scheduleMove(position);
 });
 
 
@@ -359,15 +430,23 @@ videoEl.addEventListener("mousedown", (event) => {
   // Stop the browser from starting its own drag/selection on the video.
   event.preventDefault();
 
+  // Drop any older waiting move so it can't arrive after the press.
+  pendingMove = null;
+
   // Make sure the host cursor is exactly where we pressed.
   const position = getHostPosition(event);
 
   if (position) {
-    sendCommand({
-      type: "mouse-move",
-      x: position.x,
-      y: position.y,
-    });
+    if (
+      sendCommand({
+        type: "mouse-move",
+        x: position.x,
+        y: position.y,
+      })
+    ) {
+      lastSentX = position.x;
+      lastSentY = position.y;
+    }
   }
 
   if (sendCommand({ type: "mouse-down" })) {
@@ -389,6 +468,9 @@ window.addEventListener("mouseup", (event) => {
   }
 
   leftButtonDown = false;
+
+  // Drop any older waiting move so it can't arrive after the release.
+  pendingMove = null;
 
   sendCommand({ type: "mouse-up" });
 
@@ -438,15 +520,8 @@ videoEl.addEventListener("wheel", (event) => {
     Math.round(Math.abs(event.deltaY) / 50)
   );
 
-  const command = {
+  sendCommand({
     type: "mouse-scroll",
     amount: direction * steps,
-  };
-
-  if (sendCommand(command)) {
-    console.log(
-      "Sending mouse scroll command:",
-      command
-    );
-  }
+  });
 });

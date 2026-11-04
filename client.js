@@ -295,45 +295,48 @@ function sendCommand(command) {
 }
 
 /**
- * Converts a mouse event over the displayed video into
- * coordinates matching the actual resolution of the NexaDesk Host screen.
- * Returns null if the video size isn't known yet.
+ * Converts a mouse event over the displayed video into a position
+ * that does not depend on any screen resolution:
+ *
+ *   x = 0 (left edge)  ... 1 (right edge)
+ *   y = 0 (top edge)   ... 1 (bottom edge)
+ *
+ * The host multiplies these by its own real screen size. This keeps
+ * the cursor accurate no matter what resolution the video is
+ * encoded at, how large it is shown, or how Windows scaling is set -
+ * and the Android client can send the same kind of position.
+ * Returns null if the video isn't showing yet.
  */
 function getHostPosition(event) {
   const rect =
     videoEl.getBoundingClientRect();
 
-  // Position inside the displayed video.
-  const relativeX =
-    event.clientX - rect.left;
-
-  const relativeY =
-    event.clientY - rect.top;
-
-  // Actual resolution of the incoming NexaDesk Host screen.
-  const hostWidth =
-    videoEl.videoWidth;
-
-  const hostHeight =
-    videoEl.videoHeight;
-
-  // Wait until the video metadata is available.
   if (
-    hostWidth === 0 ||
-    hostHeight === 0 ||
+    videoEl.videoWidth === 0 ||
+    videoEl.videoHeight === 0 ||
     rect.width === 0 ||
     rect.height === 0
   ) {
     return null;
   }
 
-  // Scale the displayed coordinates to the host's real resolution.
+  const clamp01 = (value) =>
+    Math.min(1, Math.max(0, value));
+
+  // 5 decimals is finer than any real screen needs.
+  const round5 = (value) =>
+    Math.round(value * 100000) / 100000;
+
   return {
-    x: Math.round(
-      (relativeX / rect.width) * hostWidth
+    x: round5(
+      clamp01(
+        (event.clientX - rect.left) / rect.width
+      )
     ),
-    y: Math.round(
-      (relativeY / rect.height) * hostHeight
+    y: round5(
+      clamp01(
+        (event.clientY - rect.top) / rect.height
+      )
     ),
   };
 }

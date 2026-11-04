@@ -506,28 +506,70 @@ videoEl.addEventListener("contextmenu", (event) => {
 /* ---------------- MOUSE SCROLL ---------------- */
 
 /**
- * Sends a scroll command to the NexaDesk Host.
+ * Sends scroll commands to the NexaDesk Host.
  *
  * The amount is signed, matching the browser's wheel direction:
  *   positive -> scroll down
  *   negative -> scroll up
+ *
+ * SCROLL_SPEED is how many host scroll steps one normal wheel
+ * notch (about 100 pixels of wheel movement) produces.
+ * Raise it to scroll faster, lower it to scroll slower.
  */
-videoEl.addEventListener("wheel", (event) => {
-  event.preventDefault();
+const SCROLL_SPEED = 8;
 
-  const direction =
-    event.deltaY > 0 ? 1 : -1;
+// Wheel movement collected since the last frame.
+let pendingScroll = 0;
+let scrollFrameRequested = false;
 
-  const steps = Math.max(
-    1,
-    Math.round(Math.abs(event.deltaY) / 50)
-  );
+videoEl.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
 
-  sendCommand({
-    type: "mouse-scroll",
-    amount: direction * steps,
-  });
-});
+    // Some mice report lines or pages instead of pixels.
+    let delta = event.deltaY;
+
+    if (event.deltaMode === 1) {
+      delta *= 40; // lines -> pixels
+    } else if (event.deltaMode === 2) {
+      delta *= 800; // pages -> pixels
+    }
+
+    // Add up all wheel movement that happens within one frame
+    // and send it as ONE command, so fast scrolling doesn't
+    // build up a queue of commands on the host.
+    pendingScroll += delta;
+
+    if (scrollFrameRequested) {
+      return;
+    }
+
+    scrollFrameRequested = true;
+
+    requestAnimationFrame(() => {
+      scrollFrameRequested = false;
+
+      const total = pendingScroll;
+      pendingScroll = 0;
+
+      const steps = Math.round(
+        (total / 100) * SCROLL_SPEED
+      );
+
+      // Too small to matter (e.g. tiny trackpad movement).
+      if (steps === 0) {
+        return;
+      }
+
+      sendCommand({
+        type: "mouse-scroll",
+        amount: steps,
+      });
+    });
+  },
+  { passive: false }
+);
 
 
 /* ---------------- KEYBOARD ---------------- */
